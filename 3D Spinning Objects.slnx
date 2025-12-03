@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="3D Spinning Objects/3D Spinning Objects.vcxproj" />
+  <Project Path="3D Spinning Objects/3D Spinning Objects.vcxproj" Id="170d98c4-6c04-41e6-b1d6-030c95c98d53" />
 </Solution>
