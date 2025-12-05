@@ -18,8 +18,9 @@ public:
         if (indexBuffer) indexBuffer->Release();
     }
 
-    void init(Core* core, std::vector<STATIC_VERTEX> vertices, std::vector<unsigned int> indices) {
-        int vBufferSize = sizeof(STATIC_VERTEX) * vertices.size();
+    template<typename VERTEX_TYPE>
+    void init(Core* core,const std::vector<VERTEX_TYPE>& vertices,const std::vector<unsigned int>& indices) {
+        int vBufferSize = sizeof(VERTEX_TYPE) * vertices.size();
 
         D3D12_HEAP_PROPERTIES heapProps = {};
         heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -33,35 +34,48 @@ public:
         vDesc.SampleDesc.Count = 1;
         vDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
-        core->device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &vDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexBuffer));
+        core->device->CreateCommittedResource(
+            &heapProps,
+            D3D12_HEAP_FLAG_NONE,
+            &vDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&vertexBuffer)
+        );
 
-        void* vData;
+        void* vData = nullptr;
         vertexBuffer->Map(0, nullptr, &vData);
-        memcpy(vData, &vertices[0], vBufferSize);
+        memcpy(vData, vertices.data(), vBufferSize);
         vertexBuffer->Unmap(0, nullptr);
 
         vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
-        vbView.StrideInBytes = sizeof(STATIC_VERTEX);
+        vbView.StrideInBytes = sizeof(VERTEX_TYPE);
         vbView.SizeInBytes = vBufferSize;
 
         int iBufferSize = sizeof(unsigned int) * indices.size();
 
-        D3D12_RESOURCE_DESC iDesc = vDesc; 
+        D3D12_RESOURCE_DESC iDesc = vDesc;
         iDesc.Width = iBufferSize;
 
-        core->device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &iDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&indexBuffer));
+        core->device->CreateCommittedResource(
+            &heapProps,
+            D3D12_HEAP_FLAG_NONE,
+            &iDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&indexBuffer)
+        );
 
-        void* iData;
+        void* iData = nullptr;
         indexBuffer->Map(0, nullptr, &iData);
-        memcpy(iData, &indices[0], iBufferSize);
+        memcpy(iData, indices.data(), iBufferSize);
         indexBuffer->Unmap(0, nullptr);
 
         ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
         ibView.Format = DXGI_FORMAT_R32_UINT;
         ibView.SizeInBytes = iBufferSize;
-        numMeshIndices = indices.size();
+
+        numMeshIndices = (int)indices.size();
     }
 
     void draw(Core* core) {

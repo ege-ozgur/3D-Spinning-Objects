@@ -508,31 +508,48 @@ public:
 		);
 	}
 
-
-	void translation(const Vec3& pVec)   // Translate a 4x4 matrix
+	void scaling(const Vec3& s)
 	{
-		m[3] += pVec.x;
-		m[7] += pVec.y;
-		m[11] += pVec.z;
+		m[0] = s.x;
+		m[5] = s.y;
+		m[10] = s.z;
 	}
 
-
-	void scaling(const Vec3& pVec)   // scale a 4x4 matrix by input vec3
+	void translation(const Vec3& t)
 	{
-		m[0] = pVec.x;
-		m[5] = pVec.y;
-		m[10] = pVec.z;
+		m[3] = t.x;
+		m[7] = t.y;
+		m[11] = t.z;
 	}
 
-
-	void rotAroundX(float angle)  // rotate a 4x4 matrix around the x-axis
+	static Matrix makeScale(const Vec3& s)
 	{
-		m[5] = cosf(angle);
-		m[6] = -sinf(angle);
-		m[9] = sinf(angle);
-		m[10] = cosf(angle);
+		Matrix m;
+		m[0] = s.x;
+		m[5] = s.y;
+		m[10] = s.z;
+		return m;
 	}
 
+	static Matrix makeTranslation(const Vec3& t)
+	{
+		Matrix m;
+		m[12] = t.x;
+		m[13] = t.y;
+		m[14] = t.z;
+		return m;
+	}
+
+	Matrix operator*(const Matrix& other) const
+	{
+		return this->multiply(other);
+	}
+
+	Matrix& operator*=(const Matrix& other)
+	{
+		*this = this->multiply(other);
+		return *this;
+	}
 
 	void rotAroundY(float angle)   // rotate a 4x4 matrix around the y-axis
 	{
@@ -731,6 +748,14 @@ public:
 		float q[4];       // union allows array style access
 	};
 
+	Quaternion()
+	{
+		a = 0;
+		b = 0;
+		c = 0;
+		d = 0;
+	}
+
 	// Standard Constructor to initialise the quaternion components
 	Quaternion(float x, float y, float z, float w)
 	{
@@ -777,7 +802,7 @@ public:
 		return Quaternion{ -a, -b, -c, -d };
 	}
 
-	Quaternion Slerp(Quaternion q1, Quaternion q2, float time)     // slerp between two input quaternions over input time
+	static Quaternion Slerp(Quaternion q1, Quaternion q2, float time)     // slerp between two input quaternions over input time
 	{
 		// finds dot product between two quaternions
 		float dotProduct = q1.a * q2.a + q1.b * q2.b + q1.c * q2.c + q1.d * q2.d;

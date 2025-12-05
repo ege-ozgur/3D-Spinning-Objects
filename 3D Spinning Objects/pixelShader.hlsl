@@ -38,6 +38,5 @@ struct PS_INPUT
 
 float4 PS(PS_INPUT input) : SV_Target0
 {
-    float3 debugNormal = abs(normalize(input.Normal));
-    return float4(debugNormal * 0.9f, 1.0f);
+    return float4(abs(normalize(input.Normal)) * 0.9f, 1.0);
 }

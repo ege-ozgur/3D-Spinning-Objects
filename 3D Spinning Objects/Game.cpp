@@ -11,6 +11,8 @@
 #include "Sphere.h"
 #include "GEMLoader.h"
 #include "StaticMesh.h"
+#include "AnimatedMesh.h"
+#include "Animation.h"
 #include <chrono>
 #include <vector>
 #include <cmath>
@@ -203,7 +205,7 @@ public:
 //    return 0;
 //}
 
-// Acacia
+// Acacia + Dinosaur Scene
 
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow)
 {
@@ -212,46 +214,82 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
     GamesEngineeringBase::Timer tim;
 
     StaticMesh acaciaDraw;
+    Plane planeDraw;
 
-    win.initialize(1024, 1024, "Acacia Model Viewer");
+    AnimatedMesh dinoDraw;
+    AnimationInstance dinoAnim;
+
+    win.initialize(1024, 1024, "Scene");
     core.initialize(win.hwnd, 1024, 1024);
 
+    planeDraw.init(&core);
     acaciaDraw.init(&core, "Models/acacia_003.gem");
 
-    Matrix world;
-    world.scaling(Vec3(0.01f, 0.01f, 0.01f));
+    dinoDraw.load(&core, "Models/TRex.gem");
 
-    float t = 0;
-    float radius = 20.0f; 
+    dinoAnim.init(&dinoDraw.animation, 1);  
+    dinoAnim.usingAnimation = "run";
+    dinoAnim.t = 0;
+
+    Matrix worldAcacia1;
+    worldAcacia1.scaling(Vec3(0.01f, 0.01f, 0.01f));
+    worldAcacia1.translation(Vec3(5.0f, 0.0f, 0.0f));
+
+    Matrix worldAcacia2;
+    worldAcacia2.scaling(Vec3(0.01f, 0.01f, 0.01f));
+    worldAcacia2.translation(Vec3(10.0f, 0.0f, 0.0f));
+
+    Matrix worldPlane;
+    worldPlane.scaling(Vec3(1.0f, 1.0f, 1.0f));
+    worldPlane.translation(Vec3(0.0f, -0.1f, 0.0f));
+
+    Matrix worldDino;
+    worldDino.scaling(Vec3(0.01f, 0.01f, 0.01f));
+    worldDino.translation(Vec3(0.0f, 0.0f, 0.0f));
+
+    float camTime = 0;
+    float radius = 20;
 
     while (true)
     {
         core.beginFrame();
         win.processMessages();
-        if (win.keys[VK_ESCAPE] == 1) break;
+        if (win.keys[VK_ESCAPE]) break;
 
         core.beginRenderPass();
-        t += tim.dt();
+
+        float dt = tim.dt();
+        camTime += dt;
+
+        dinoAnim.update("run", dt);
 
         float aspect = (float)win.width / (float)win.height;
-        float fieldOfView = 60.0f;
-        float _near = 0.1f;  
-        float _far = 10000.0f;
 
         Matrix p;
-        p = p.perspectiveProjection(aspect, fieldOfView, _near, _far);
+        p = p.perspectiveProjection(aspect, 60, 0.1f, 5000);
 
-        Vec3 from = Vec3(radius * cos(t * 0.5f), 10.0f, radius * sinf(t * 0.5f));
+        Vec3 eye(
+            radius * cos(camTime * 0.5f),
+            10,
+            radius * sin(camTime * 0.5f)
+        );
+
         Matrix v;
-        v = v.lookAtMatrix(from, Vec3(0, 0, 0), Vec3(0, 1, 0));
+        v = v.lookAtMatrix(eye, Vec3(0, 0, 0), Vec3(0, 1, 0));
 
         Matrix vp = p.multiply(v);
 
-        acaciaDraw.draw(&core, world, vp);
+        acaciaDraw.draw(&core, worldAcacia1, vp);
+        acaciaDraw.draw(&core, worldAcacia2, vp);
+        planeDraw.draw(&core, worldPlane, vp);
+
+        Matrix testBone = dinoAnim.matrices[0];
+
+        dinoDraw.draw(&core, &dinoAnim, vp, worldDino);
 
         core.finishFrame();
     }
+
     core.flushGraphicsQueue();
     return 0;
 }
-

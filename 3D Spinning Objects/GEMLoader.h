@@ -408,7 +408,7 @@ namespace GEMLoader
 
 	public:
 		// Checks if the model file is flagged as an animated model
-		bool isAnimatedModel(std::string filename)
+		bool isAnimatedMesh(std::string filename)
 		{
 			std::ifstream file(filename, ::std::ios::binary);
 			unsigned int n = 0;
