@@ -28,26 +28,20 @@ PS_INPUT VS(VS_INPUT input)
 {
     PS_INPUT output;
     float4 pos = input.Pos;
-    pos.w = 1.0f; 
-    
     float4x4 transform;
-    transform[0] = float4(1, 0, 0, 0);
-    transform[1] = float4(0, 1, 0, 0);
-    transform[2] = float4(0, 0, 1, 0);
-    transform[3] = float4(0, 0, 0, 1);
-    
+    transform = bones[input.BoneIDs[0]] * input.BoneWeights[0];
+    transform += bones[input.BoneIDs[1]] * input.BoneWeights[1];
+    transform += bones[input.BoneIDs[2]] * input.BoneWeights[2];
+    transform += bones[input.BoneIDs[3]] * input.BoneWeights[3];
     output.Pos = mul(pos, transform);
     output.Pos = mul(output.Pos, W);
     output.Pos = mul(output.Pos, VP);
-
     output.Normal = mul(input.Normal, (float3x3) transform);
     output.Normal = mul(output.Normal, (float3x3) W);
     output.Normal = normalize(output.Normal);
-
     output.Tangent = mul(input.Tangent, (float3x3) transform);
     output.Tangent = mul(output.Tangent, (float3x3) W);
     output.Tangent = normalize(output.Tangent);
-
     output.TexCoords = input.TexCoords;
     return output;
 }

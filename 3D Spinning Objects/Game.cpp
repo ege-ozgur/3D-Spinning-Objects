@@ -207,29 +207,108 @@ public:
 
 // Acacia + Dinosaur Scene
 
+struct CameraController {
+    Vec3 position;
+    Vec3 forward;
+    Vec3 right;
+    Vec3 up;
+
+    float yaw;
+    float pitch;
+
+    float moveSpeed = 10.0f;
+    float mouseSensitivity = 0.002f;
+
+    void init(Vec3 startPos) {
+        position = startPos;
+        up = Vec3(0, 1, 0);
+        yaw = 0.0f;
+        pitch = 0.0f;
+        updateVectors();
+    }
+
+    void updateVectors() {
+        forward.x = sin(yaw) * cos(pitch);
+        forward.y = sin(pitch);
+        forward.z = cos(yaw) * cos(pitch);
+
+        float len = sqrt(forward.x * forward.x + forward.y * forward.y + forward.z * forward.z);
+        if (len > 0) { forward.x /= len; forward.y /= len; forward.z /= len; }
+
+        right = forward.Cross(up);
+
+        len = sqrt(right.x * right.x + right.y * right.y + right.z * right.z);
+        if (len > 0) { right.x /= len; right.y /= len; right.z /= len; }
+    }
+
+    void update(float dt, Window* win) {
+
+        int centerX = win->width / 2;
+        int centerY = win->height / 2;
+        float deltaX = (float)(win->mousex - centerX);
+        float deltaY = (float)(win->mousey - centerY);
+
+        if (deltaX != 0 || deltaY != 0) {
+            yaw += deltaX * mouseSensitivity;
+            pitch -= deltaY * mouseSensitivity; 
+
+            if (pitch > 1.5f) pitch = 1.5f;
+            if (pitch < -1.5f) pitch = -1.5f;
+
+            updateVectors();
+            POINT pt;
+            pt.x = centerX;
+            pt.y = centerY;
+            ClientToScreen(win->hwnd, &pt); 
+            SetCursorPos(pt.x, pt.y);
+            win->updateMouse(centerX, centerY);
+        }
+
+        float speed = moveSpeed * dt;
+
+        if (win->keys['W']) position = position + (forward * speed);
+        if (win->keys['S']) position = position - (forward * speed);
+        if (win->keys['D']) position = position - (right * speed);
+        if (win->keys['A']) position = position + (right * speed);
+
+    }
+
+    Matrix getViewMatrix() {
+        Matrix v;
+        return v.lookAtMatrix(position, position + forward, up);
+    }
+};
+
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow)
 {
     Window win;
     Core core;
-    GamesEngineeringBase::Timer tim;
+    Timer tim;
+    CameraController cam;
+
+    ShaderManager shaderMgr;
+    PSOManager psoMgr;
 
     StaticMesh acaciaDraw;
+	StaticMesh ashTreeDraw;
     Plane planeDraw;
-
     AnimatedMesh dinoDraw;
     AnimationInstance dinoAnim;
 
-    win.initialize(1024, 1024, "Scene");
+    win.initialize(1024, 1024, "Game Scene");
     core.initialize(win.hwnd, 1024, 1024);
 
     planeDraw.init(&core);
     acaciaDraw.init(&core, "Models/acacia_003.gem");
+	ashTreeDraw.init(&core, "Models/Ash_Tree_01e.gem");
+    dinoDraw.load(&core, "Models/TRex.gem", &psoMgr, &shaderMgr);
 
-    dinoDraw.load(&core, "Models/TRex.gem");
-
-    dinoAnim.init(&dinoDraw.animation, 1);  
+    dinoAnim.init(&dinoDraw.animation, 0);
     dinoAnim.usingAnimation = "run";
     dinoAnim.t = 0;
+
+    cam.init(Vec3(0, 5, -20));
+    ShowCursor(FALSE);
 
     Matrix worldAcacia1;
     worldAcacia1.scaling(Vec3(0.01f, 0.01f, 0.01f));
@@ -239,6 +318,10 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
     worldAcacia2.scaling(Vec3(0.01f, 0.01f, 0.01f));
     worldAcacia2.translation(Vec3(10.0f, 0.0f, 0.0f));
 
+    Matrix worldAshTree;
+    worldAshTree.scaling(Vec3(1.0f, 1.0f, 1.0f));
+    worldAshTree.translation(Vec3(15.0f, 0.0f, 0.0f));
+
     Matrix worldPlane;
     worldPlane.scaling(Vec3(1.0f, 1.0f, 1.0f));
     worldPlane.translation(Vec3(0.0f, -0.1f, 0.0f));
@@ -247,49 +330,41 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nC
     worldDino.scaling(Vec3(0.01f, 0.01f, 0.01f));
     worldDino.translation(Vec3(0.0f, 0.0f, 0.0f));
 
-    float camTime = 0;
-    float radius = 20;
-
     while (true)
     {
         core.beginFrame();
         win.processMessages();
-        if (win.keys[VK_ESCAPE]) break;
+
+        if (win.keys[VK_ESCAPE]) {
+            break;
+        }
 
         core.beginRenderPass();
 
         float dt = tim.dt();
-        camTime += dt;
 
+        cam.update(dt, &win);
         dinoAnim.update("run", dt);
 
         float aspect = (float)win.width / (float)win.height;
-
         Matrix p;
         p = p.perspectiveProjection(aspect, 60, 0.1f, 5000);
 
-        Vec3 eye(
-            radius * cos(camTime * 0.5f),
-            10,
-            radius * sin(camTime * 0.5f)
-        );
-
-        Matrix v;
-        v = v.lookAtMatrix(eye, Vec3(0, 0, 0), Vec3(0, 1, 0));
-
-        Matrix vp = p.multiply(v);
+        Matrix v = cam.getViewMatrix();
+        Matrix vp = v * p;
 
         acaciaDraw.draw(&core, worldAcacia1, vp);
         acaciaDraw.draw(&core, worldAcacia2, vp);
+		ashTreeDraw.draw(&core, worldAshTree, vp);
         planeDraw.draw(&core, worldPlane, vp);
 
-        Matrix testBone = dinoAnim.matrices[0];
 
-        dinoDraw.draw(&core, &dinoAnim, vp, worldDino);
+        dinoDraw.draw(&core, &psoMgr, &shaderMgr, &dinoAnim, vp, worldDino);
 
         core.finishFrame();
     }
 
+    ShowCursor(TRUE);
     core.flushGraphicsQueue();
     return 0;
 }

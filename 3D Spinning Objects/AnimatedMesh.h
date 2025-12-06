@@ -4,134 +4,119 @@
 #include <d3d12.h>
 #include "Core.h"
 #include "PSOManager.h"
-#include "ShaderManager.h"
+#include "ShaderManager.h" 
 #include "Mesh.h"
 #include "Animation.h"
 #include "GEMLoader.h"
 #include "Vertex.h"
-#include "ConstantBuffer.h"
-#include "ShaderReflection.h"
+#include "ConstantBuffer.h" 
+#include "ShaderReflection.h" 
 
 class AnimatedMesh
 {
 public:
     std::vector<Mesh*> meshes;
     Animation animation;
+    std::vector<std::string> textureFilenames;
+    ConstantBuffer* cBuffer = nullptr;
 
-    ShaderManager shaderMgr;
-    PSOManager    psoMgr;
+    ~AnimatedMesh() {
+        if (cBuffer) delete cBuffer;
+        for (auto m : meshes) delete m;
+    }
 
-    ConstantBuffer vsCB;
-    ConstantBufferDescription vsCBDesc;
-
-    int boneCount = 0;
-
-    void load(Core* core, const std::string& filename)
+    void load(Core* core, std::string filename, PSOManager* psos, ShaderManager* shaderMgr)
     {
         GEMLoader::GEMModelLoader loader;
-        std::vector<GEMLoader::GEMMesh> gemMeshes;
-        GEMLoader::GEMAnimation gemAnim;
+        std::vector<GEMLoader::GEMMesh> gemmeshes;
+        GEMLoader::GEMAnimation gemanimation;
+        loader.load(filename, gemmeshes, gemanimation);
 
-        loader.load(filename, gemMeshes, gemAnim);
-
-        for (int i = 0; i < (int)gemMeshes.size(); i++)
+        for (int i = 0; i < gemmeshes.size(); i++)
         {
             Mesh* mesh = new Mesh();
             std::vector<ANIMATED_VERTEX> vertices;
-            vertices.reserve(gemMeshes[i].verticesAnimated.size());
-
-            for (auto& srcV : gemMeshes[i].verticesAnimated)
+            for (int j = 0; j < gemmeshes[i].verticesAnimated.size(); j++)
             {
                 ANIMATED_VERTEX v;
-                memcpy(&v, &srcV, sizeof(ANIMATED_VERTEX));
+                memcpy(&v, &gemmeshes[i].verticesAnimated[j], sizeof(ANIMATED_VERTEX));
                 vertices.push_back(v);
             }
-            mesh->init(core, vertices, gemMeshes[i].indices);
+            mesh->init(core, vertices, gemmeshes[i].indices);
             meshes.push_back(mesh);
         }
 
-        ID3DBlob* vs = shaderMgr.loadVS("AnimatedVS", "animVertexShader.hlsl");
-        ID3DBlob* ps = shaderMgr.loadPS("AnimatedPS", "pixelShader.hlsl");
+        ID3DBlob* vsBlob = shaderMgr->loadVS("AnimatedUntexturedVS", "animVertexShader.hlsl");
+        ID3DBlob* psBlob = shaderMgr->loadPS("AnimatedUntexturedPS", "pixelShader.hlsl");
 
-        psoMgr.createPSO(
-            core,
-            "AnimatedMeshPSO",
-            vs, ps,
-            VertexLayoutCache::getAnimatedLayout()
-        );
+        psos->createPSO(core, "AnimatedModelPSO", vsBlob, psBlob, VertexLayoutCache::getAnimatedLayout());
 
-        ConstantBufferLayout layout = ShaderReflection::reflect(vs, "staticMeshBuffer");
+        ConstantBufferLayout reflectLayout = ShaderReflection::reflect(vsBlob, "staticMeshBuffer");
 
-        vsCBDesc.name = layout.name;
-        vsCBDesc.totalSize = layout.totalSize;
+        ConstantBufferDescription cbDesc(reflectLayout.name);
+        cbDesc.totalSize = reflectLayout.totalSize;
 
-        for (auto& kv : layout.variables)
+        for (auto& kv : reflectLayout.variables)
         {
-            ConstantBufferVariable v;
-            v.offset = kv.second.offset;
-            v.size = kv.second.size;
-            vsCBDesc.constantBufferData[kv.first] = v;
+            ConstantBufferVariable var;
+            var.offset = kv.second.offset;
+            var.size = kv.second.size;
+            cbDesc.constantBufferData[kv.first] = var;
         }
 
-        vsCB.init(core, vsCBDesc, 1024);
+        cBuffer = new ConstantBuffer();
+        cBuffer->init(core, cbDesc);
 
-        memcpy(&animation.skeleton.globalInverse, &gemAnim.globalInverse, sizeof(Matrix));
-        boneCount = (int)gemAnim.bones.size();
-        animation.skeleton.bones.reserve(boneCount);
-
-        for (auto& b : gemAnim.bones)
+        memcpy(&animation.skeleton.globalInverse, &gemanimation.globalInverse, 16 * sizeof(float));
+        for (int i = 0; i < gemanimation.bones.size(); i++)
         {
             Bone bone;
-            bone.name = b.name;
-            memcpy(&bone.offset, &b.offset, sizeof(Matrix));
-            bone.parentIndex = b.parentIndex;
+            bone.name = gemanimation.bones[i].name;
+            memcpy(&bone.offset, &gemanimation.bones[i].offset, 16 * sizeof(float));
+            bone.parentIndex = gemanimation.bones[i].parentIndex;
             animation.skeleton.bones.push_back(bone);
         }
-
-        for (auto& gAnim : gemAnim.animations)
+        for (int i = 0; i < gemanimation.animations.size(); i++)
         {
-            AnimationSequence seq;
-            seq.ticksPerSecond = gAnim.ticksPerSecond;
-            for (auto& f : gAnim.frames)
+            std::string name = gemanimation.animations[i].name;
+            AnimationSequence aseq;
+            aseq.ticksPerSecond = gemanimation.animations[i].ticksPerSecond;
+            for (int j = 0; j < gemanimation.animations[i].frames.size(); j++)
             {
                 AnimationFrame frame;
-                int count = (int)f.positions.size();
-                for (int i = 0; i < count; i++)
+                for (int index = 0; index < gemanimation.animations[i].frames[j].positions.size(); index++)
                 {
-                    Vec3 p, s; Quaternion q;
-                    memcpy(&p, &f.positions[i], sizeof(Vec3));
-                    memcpy(&q, &f.rotations[i], sizeof(Quaternion));
-                    memcpy(&s, &f.scales[i], sizeof(Vec3));
+                    Vec3 p; Quaternion q; Vec3 s;
+                    memcpy(&p, &gemanimation.animations[i].frames[j].positions[index], sizeof(Vec3));
                     frame.positions.push_back(p);
+                    memcpy(&q, &gemanimation.animations[i].frames[j].rotations[index], sizeof(Quaternion));
                     frame.rotations.push_back(q);
+                    memcpy(&s, &gemanimation.animations[i].frames[j].scales[index], sizeof(Vec3));
                     frame.scales.push_back(s);
                 }
-                seq.frames.push_back(frame);
+                aseq.frames.push_back(frame);
             }
-            animation.animations[gAnim.name] = seq;
+            animation.animations.insert({ name, aseq });
         }
-        OutputDebugStringA("AnimatedMesh::load - OK\n");
     }
 
-    void draw(Core* core,
-        AnimationInstance* instance,
-        const Matrix& vp,
-        const Matrix& w)
+    void draw(Core* core, PSOManager* psos, ShaderManager* shaderMgr, AnimationInstance* instance, Matrix& vp, Matrix& w)
     {
-        psoMgr.bind(core, "AnimatedMeshPSO");
+        psos->bind(core, "AnimatedModelPSO");
 
-        vsCB.nextInstance();
+        cBuffer->update("W", &w, sizeof(Matrix));
+        cBuffer->update("VP", &vp, sizeof(Matrix));
 
-        vsCB.update("W", &w, sizeof(Matrix));
-        vsCB.update("VP", &vp, sizeof(Matrix));
-        vsCB.update("bones", instance->matrices, sizeof(Matrix) * boneCount);
+        size_t boneDataSize = sizeof(instance->matrices);
+        cBuffer->update("bones", instance->matrices, boneDataSize);
 
-        core->getCommandList()->SetGraphicsRootConstantBufferView(
-            0, 
-            vsCB.getGPUAddress()
-        );
+        core->getCommandList()->SetGraphicsRootConstantBufferView(0, cBuffer->getGPUAddress());
 
-        for (auto m : meshes)
-            m->draw(core);
+        for (int i = 0; i < meshes.size(); i++)
+        {
+            meshes[i]->draw(core);
+        }
+
+        cBuffer->next();
     }
 };

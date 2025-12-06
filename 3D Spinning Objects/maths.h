@@ -522,22 +522,21 @@ public:
 		m[11] = t.z;
 	}
 
-	static Matrix makeScale(const Vec3& s)
+	static Matrix translation3D(const Vec3& v)
 	{
-		Matrix m;
-		m[0] = s.x;
-		m[5] = s.y;
-		m[10] = s.z;
-		return m;
+		Matrix mat;
+		mat.a[0][3] = v.x;
+		mat.a[1][3] = v.y;
+		mat.a[2][3] = v.z;
+		return mat;
 	}
-
-	static Matrix makeTranslation(const Vec3& t)
+	static Matrix scaling3D(const Vec3& v)
 	{
-		Matrix m;
-		m[12] = t.x;
-		m[13] = t.y;
-		m[14] = t.z;
-		return m;
+		Matrix mat;
+		mat.m[0] = v.x;
+		mat.m[5] = v.y;
+		mat.m[10] = v.z;
+		return mat;
 	}
 
 	Matrix operator*(const Matrix& other) const
@@ -549,6 +548,19 @@ public:
 	{
 		*this = this->multiply(other);
 		return *this;
+	}
+
+	void rotationX(float angle)
+	{
+		m[0] = 1; m[1] = 0; m[2] = 0; m[3] = 0;
+		m[4] = 0; m[5] = 1; m[6] = 0; m[7] = 0;
+		m[8] = 0; m[9] = 0; m[10] = 1; m[11] = 0;
+		m[12] = 0; m[13] = 0; m[14] = 0; m[15] = 1;
+
+		m[5] = cosf(angle);
+		m[6] = -sinf(angle);
+		m[9] = sinf(angle);
+		m[10] = cosf(angle);
 	}
 
 	void rotAroundY(float angle)   // rotate a 4x4 matrix around the y-axis
@@ -569,25 +581,30 @@ public:
 	}
 
 
-	Matrix multiply(const Matrix& matrix) const    // multiply this matrix by input matrix
+	Matrix multiply(const Matrix& matrix) const
 	{
 		Matrix ret;
-		ret.m[0] = m[0] * matrix.m[0] + m[1] * matrix.m[4] + m[2] * matrix.m[8] + m[3] * matrix.m[12];
-		ret.m[1] = m[0] * matrix.m[1] + m[1] * matrix.m[5] + m[2] * matrix.m[9] + m[3] * matrix.m[13];
-		ret.m[2] = m[0] * matrix.m[2] + m[1] * matrix.m[6] + m[2] * matrix.m[10] + m[3] * matrix.m[14];
-		ret.m[3] = m[0] * matrix.m[3] + m[1] * matrix.m[7] + m[2] * matrix.m[11] + m[3] * matrix.m[15];
-		ret.m[4] = m[4] * matrix.m[0] + m[5] * matrix.m[4] + m[6] * matrix.m[8] + m[7] * matrix.m[12];
-		ret.m[5] = m[4] * matrix.m[1] + m[5] * matrix.m[5] + m[6] * matrix.m[9] + m[7] * matrix.m[13];
-		ret.m[6] = m[4] * matrix.m[2] + m[5] * matrix.m[6] + m[6] * matrix.m[10] + m[7] * matrix.m[14];
-		ret.m[7] = m[4] * matrix.m[3] + m[5] * matrix.m[7] + m[6] * matrix.m[11] + m[7] * matrix.m[15];
-		ret.m[8] = m[8] * matrix.m[0] + m[9] * matrix.m[4] + m[10] * matrix.m[8] + m[11] * matrix.m[12];
-		ret.m[9] = m[8] * matrix.m[1] + m[9] * matrix.m[5] + m[10] * matrix.m[9] + m[11] * matrix.m[13];
-		ret.m[10] = m[8] * matrix.m[2] + m[9] * matrix.m[6] + m[10] * matrix.m[10] + m[11] * matrix.m[14];
-		ret.m[11] = m[8] * matrix.m[3] + m[9] * matrix.m[7] + m[10] * matrix.m[11] + m[11] * matrix.m[15];
-		ret.m[12] = m[12] * matrix.m[0] + m[13] * matrix.m[4] + m[14] * matrix.m[8] + m[15] * matrix.m[12];
-		ret.m[13] = m[12] * matrix.m[1] + m[13] * matrix.m[5] + m[14] * matrix.m[9] + m[15] * matrix.m[13];
-		ret.m[14] = m[12] * matrix.m[2] + m[13] * matrix.m[6] + m[14] * matrix.m[10] + m[15] * matrix.m[14];
-		ret.m[15] = m[12] * matrix.m[3] + m[13] * matrix.m[7] + m[14] * matrix.m[11] + m[15] * matrix.m[15];
+
+		ret.m[0] = m[0] * matrix.m[0] + m[4] * matrix.m[1] + m[8] * matrix.m[2] + m[12] * matrix.m[3];
+		ret.m[1] = m[1] * matrix.m[0] + m[5] * matrix.m[1] + m[9] * matrix.m[2] + m[13] * matrix.m[3];
+		ret.m[2] = m[2] * matrix.m[0] + m[6] * matrix.m[1] + m[10] * matrix.m[2] + m[14] * matrix.m[3];
+		ret.m[3] = m[3] * matrix.m[0] + m[7] * matrix.m[1] + m[11] * matrix.m[2] + m[15] * matrix.m[3];
+
+		ret.m[4] = m[0] * matrix.m[4] + m[4] * matrix.m[5] + m[8] * matrix.m[6] + m[12] * matrix.m[7];
+		ret.m[5] = m[1] * matrix.m[4] + m[5] * matrix.m[5] + m[9] * matrix.m[6] + m[13] * matrix.m[7];
+		ret.m[6] = m[2] * matrix.m[4] + m[6] * matrix.m[5] + m[10] * matrix.m[6] + m[14] * matrix.m[7];
+		ret.m[7] = m[3] * matrix.m[4] + m[7] * matrix.m[5] + m[11] * matrix.m[6] + m[15] * matrix.m[7];
+
+		ret.m[8] = m[0] * matrix.m[8] + m[4] * matrix.m[9] + m[8] * matrix.m[10] + m[12] * matrix.m[11];
+		ret.m[9] = m[1] * matrix.m[8] + m[5] * matrix.m[9] + m[9] * matrix.m[10] + m[13] * matrix.m[11];
+		ret.m[10] = m[2] * matrix.m[8] + m[6] * matrix.m[9] + m[10] * matrix.m[10] + m[14] * matrix.m[11];
+		ret.m[11] = m[3] * matrix.m[8] + m[7] * matrix.m[9] + m[11] * matrix.m[10] + m[15] * matrix.m[11];
+
+		ret.m[12] = m[0] * matrix.m[12] + m[4] * matrix.m[13] + m[8] * matrix.m[14] + m[12] * matrix.m[15];
+		ret.m[13] = m[1] * matrix.m[12] + m[5] * matrix.m[13] + m[9] * matrix.m[14] + m[13] * matrix.m[15];
+		ret.m[14] = m[2] * matrix.m[12] + m[6] * matrix.m[13] + m[10] * matrix.m[14] + m[14] * matrix.m[15];
+		ret.m[15] = m[3] * matrix.m[12] + m[7] * matrix.m[13] + m[11] * matrix.m[14] + m[15] * matrix.m[15];
+
 		return ret;
 	}
 
@@ -738,16 +755,15 @@ public:
 class Quaternion
 {
 public:
-	union
-	{
-		struct
-		{
-			float a, b, c, d;
+	union {
+		struct {
+			float a;
+			float b;
+			float c;
+			float d;
 		};
-
-		float q[4];       // union allows array style access
+		float q[4];
 	};
-
 	Quaternion()
 	{
 		a = 0;
@@ -755,108 +771,121 @@ public:
 		c = 0;
 		d = 0;
 	}
-
-	// Standard Constructor to initialise the quaternion components
-	Quaternion(float x, float y, float z, float w)
+	Quaternion(float _x, float _y, float _z, float _w)
 	{
-		a = x;
-		b = y;
-		c = z;
-		d = w;
+		a = _x;
+		b = _y;
+		c = _z;
+		d = _w;
 	}
-
-	Matrix toMatrix()    // Converts quaternion to 4x4 rotation matrix
+	float norm()
 	{
-		float aa = a * a, ab = a * b, ac = a * c;
-		float bb = b * b, bc = b * c, cc = c * c;
-		float da = d * a, db = d * b, dc = d * c;
-		Matrix m;
-		m[0] = 1 - 2 * (bb + cc); m[1] = 2 * (ab - dc); m[2] = 2 * (ac + db); m[3] = 0;
-		m[4] = 2 * (ab + dc); m[5] = 1 - 2 * (aa + cc); m[6] = 2 * (bc - da); m[7] = 0;
-		m[8] = 2 * (ac - db); m[9] = 2 * (bc + da); m[10] = 1 - 2 * (aa + bb); m[11] = 0;
-		m[12] = m[13] = m[14] = 0; m[15] = 1;
-		return m;
+		return sqrtf(SQ(a) + SQ(b) + SQ(c) + SQ(d));
 	}
-
-	Quaternion Normalised() const      // returns a unit Quaternion
+	void Normalize()
 	{
-		float magnitude = sqrtf(a * a + b * b + c * c + d * d);
-
-		if (magnitude > 0.0f)
+		float n = 1.0f / sqrtf(SQ(a) + SQ(b) + SQ(c) + SQ(d));
+		a *= n;
+		b *= n;
+		c *= n;
+		d *= n;
+	}
+	void Conjugate()
+	{
+		a = -a;
+		b = -b;
+		c = -c;
+	}
+	void invert()
+	{
+		Conjugate();
+		Normalize();
+	}
+	Quaternion operator*(Quaternion q1)
+	{
+		Quaternion v;
+		v.a = ((d * q1.a) + (a * q1.d) + (b * q1.c) - (c * q1.b));
+		v.b = ((d * q1.b) - (a * q1.c) + (b * q1.d) + (c * q1.a));
+		v.c = ((d * q1.c) + (a * q1.b) - (b * q1.a) + (c * q1.d));
+		v.d = ((d * q1.d) - (a * q1.a) - (b * q1.b) - (c * q1.c));
+		return v;
+	}
+	Matrix toMatrix()
+	{
+		float aa = a * a;
+		float ab = a * b;
+		float ac = a * c;
+		float bb = b * b;
+		float cc = c * c;
+		float bc = b * c;
+		float da = d * a;
+		float db = d * b;
+		float dc = d * c;
+		Matrix matrix;
+		matrix[0] = 1.0f - 2.0f * (bb + cc);
+		matrix[1] = 2.0f * (ab - dc);
+		matrix[2] = 2.0f * (ac + db);
+		matrix[3] = 0.0;
+		matrix[4] = 2.0f * (ab + dc);
+		matrix[5] = 1.0f - 2.0f * (aa + cc);
+		matrix[6] = 2.0f * (bc - da);
+		matrix[7] = 0.0;
+		matrix[8] = 2.0f * (ac - db);
+		matrix[9] = 2.0f * (bc + da);
+		matrix[10] = 1.0f - 2.0f * (aa + bb);
+		matrix[11] = 0.0;
+		matrix[12] = 0;
+		matrix[13] = 0;
+		matrix[14] = 0;
+		matrix[15] = 1;
+		return matrix;
+	}
+	void rotateAboutAxis(Vec3 pt, float angle, Vec3 axis)
+	{
+		Quaternion q1, p, qinv;
+		q1.a = sinf(0.5f * angle) * axis.x;
+		q1.b = sinf(0.5f * angle) * axis.y;
+		q1.c = sinf(0.5f * angle) * axis.z;
+		q1.d = cosf(0.5f * angle);
+		p.a = pt.x;
+		p.b = pt.y;
+		p.c = pt.z;
+		p.d = 0;
+		qinv = q1;
+		qinv.invert();
+		q1 = q1 * p;
+		q1 = q1 * qinv;
+		a = q1.a;
+		b = q1.b;
+		c = q1.c;
+		d = q1.d;
+	}
+	static Quaternion slerp(Quaternion q1, Quaternion q2, float t)
+	{
+		Quaternion qr;
+		float dp = q1.a * q2.a + q1.b * q2.b + q1.c * q2.c + q1.d * q2.d;
+		Quaternion q11 = dp < 0 ? -q1 : q1;
+		dp = dp > 0 ? dp : -dp;
+		float theta = acosf(clamp(dp, -1.0f, 1.0f));
+		if (theta == 0)
 		{
-			float inverse = 1.0f / magnitude;
-
-			return Quaternion{ a * inverse, b * inverse, c * inverse, d * inverse };
+			return q1;
 		}
-
-		return Quaternion(0, 0, 0, 1); // return the identity quaternion as fallback
+		float d = sinf(theta);
+		float a = sinf((1 - t) * theta);
+		float b = sinf(t * theta);
+		float coeff1 = a / d;
+		float coeff2 = b / d;
+		qr.a = coeff1 * q11.a + coeff2 * q2.a;
+		qr.b = coeff1 * q11.b + coeff2 * q2.b;
+		qr.c = coeff1 * q11.c + coeff2 * q2.c;
+		qr.d = coeff1 * q11.d + coeff2 * q2.d;
+		qr.Normalize();
+		return qr;
 	}
-
-	Quaternion Conjugate() const    // conjugate, inverse rotation
+	Quaternion operator-()
 	{
-		return Quaternion{ -a, -b, -c, d };
-	}
-
-	Quaternion operator-() const     // unary negate, same rotation
-	{
-		return Quaternion{ -a, -b, -c, -d };
-	}
-
-	static Quaternion Slerp(Quaternion q1, Quaternion q2, float time)     // slerp between two input quaternions over input time
-	{
-		// finds dot product between two quaternions
-		float dotProduct = q1.a * q2.a + q1.b * q2.b + q1.c * q2.c + q1.d * q2.d;
-		
-		// get the shortest path
-		if (dotProduct < 0.0f) 
-		{
-			// negate Quaternion 2
-			q2.a = -q2.a;
-			q2.b = -q2.b;
-			q2.c = -q2.c;
-			q2.d = -q2.d;
-			dotProduct = -dotProduct;
-		}
-
-		// set up theta and sin theta
-		float theta = acosf(dotProduct);
-		float sinTheta = sinf(theta);
-
-		// from formula
-		float w1 = sinf(theta * (1 - time)) / sinTheta;
-		float w2 = sinf(theta * time) / sinTheta;
-
-		return Quaternion(
-			q1.a * w1 + q2.a * w2,
-			q1.b * w1 + q2.b * w2,
-			q1.c * w1 + q2.c * w2,
-			q1.d * w1 + q2.d * w2
-		);
-
-	}
-
-	Quaternion quatMul(const Quaternion& q1, const Quaternion& q2)  // multiple two input quaternions together
-	{
-		return Quaternion(
-			q1.d * q2.d - q1.a * q2.a - q1.b * q2.b - q1.c * q2.c,
-			q1.d * q2.a + q1.a * q2.d + q1.b * q2.c - q1.c * q2.b,
-			q1.d * q2.b - q1.a * q2.c + q1.b * q2.d + q1.c * q2.a,
-			q1.d * q2.c + q1.a * q2.b - q1.b * q2.a + q1.c * q2.d
-		);
-	}
-
-	// Build quaternion from axis-angle
-	Quaternion FromAxisAngle(const Vec3& axis, float angleRadians)   // paramters are vec3 axis (0,1,0) for y-axis and angle in degrees
-	{
-		Vec3 v = axis.normalize();                // normalise the vector so unit quaternion or rotation is invalid
-		float halfAngle = angleRadians * 0.5f;    // halve the radians angle
-		float s = sin(halfAngle);                 // set up sin (radians angle / 2)
-		float w = cos(halfAngle);                 // set up cos (radians angle / 2)
-		return Quaternion(            
-			v.x * s,          // vector x-component * sin half angle
-			v.y * s,          // vector y-component * sin half angle
-			v.z * s,          // vector z-component * sin half angle
-			w);               // just cos angle
+		return Quaternion(-a, -b, -c, -d);
 	}
 };
 
